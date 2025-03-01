@@ -1,6 +1,65 @@
+'use client';
+
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import supabase from '../../supabase';
 import Image from "next/image";
 
+type FormData = {
+  first: string;
+  last: string;
+  email: string;
+  message: string;
+};
+
 export default function Home() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<{
+    type: 'success' | 'error' | null;
+    message: string;
+  }>({ type: null, message: '' });
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors }
+  } = useForm<FormData>();
+
+  const onSubmit = async (formData: FormData) => {
+    setIsSubmitting(true);
+    setSubmitStatus({ type: null, message: '' });
+
+    try {
+      const { data, error } = await supabase
+        .from("contactus")
+        .insert([
+          {
+            first: formData.first,
+            last: formData.last,
+            email: formData.email,
+            message: formData.message,
+          },
+        ])
+        .select();
+
+      if (error) throw error;
+
+      setSubmitStatus({
+        type: 'success',
+        message: 'Thank you for your message! We will get back to you soon.'
+      });
+      reset(); // Reset form after successful submission
+    } catch (error) {
+      setSubmitStatus({
+        type: 'error',
+        message: 'Something went wrong. Please try again later.'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#faf6f1]">
       {/* Navigation */}
@@ -50,6 +109,13 @@ export default function Home() {
             </div>
             <div className="md:w-1/2 relative h-[400px] md:h-[500px]">
               <div className="absolute inset-0 bg-[#e9d5c3] rounded-2xl overflow-hidden shadow-xl">
+                <Image
+                  src="/chatbot.webp"
+                  alt="AI-powered Ayurvedic Chatbot"
+                  fill
+                  className="object-cover"
+                  priority
+                />
                 <div className="absolute inset-0 bg-gradient-to-br from-[#2d5438]/20 to-transparent"></div>
               </div>
             </div>
@@ -119,6 +185,13 @@ export default function Home() {
               </ul>
             </div>
             <div className="md:w-1/2 h-[400px] bg-[#e9d5c3] rounded-2xl overflow-hidden relative">
+              <Image
+                src="/ayunetra.webp"
+                alt="Ayunetra - Bridging Ancient Wisdom with Modern Science"
+                fill
+                className="object-cover"
+                priority
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-[#2d5438]/20 to-transparent"></div>
             </div>
           </div>
@@ -132,31 +205,75 @@ export default function Home() {
             Begin Your Wellness Journey
           </h2>
           <div className="max-w-2xl mx-auto">
-            <form className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <input
-                  type="text"
-                  placeholder="First Name"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:border-[#2d5438] focus:ring-2 focus:ring-[#2d5438]/20"
-                />
-                <input
-                  type="text"
-                  placeholder="Last Name"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:border-[#2d5438] focus:ring-2 focus:ring-[#2d5438]/20"
-                />
+            {submitStatus.type && (
+              <div className={`mb-6 p-4 rounded-lg ${
+                submitStatus.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+              }`}>
+                {submitStatus.message}
               </div>
-              <input
-                type="email"
-                placeholder="Email Address"
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:border-[#2d5438] focus:ring-2 focus:ring-[#2d5438]/20"
-              />
-              <textarea
-                placeholder="Your Message"
-                rows={4}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:border-[#2d5438] focus:ring-2 focus:ring-[#2d5438]/20"
-              ></textarea>
-              <button className="w-full bg-[#2d5438] text-white px-8 py-3 rounded-full hover:bg-[#1a3222] transition duration-300">
-                Send Message
+            )}
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <input
+                    type="text"
+                    {...register("first", { required: "First name is required" })}
+                    placeholder="First Name"
+                    className={`w-full px-4 py-3 rounded-lg border ${
+                      errors.first ? 'border-red-500' : 'border-gray-300'
+                    } focus:outline-none focus:border-[#2d5438] focus:ring-2 focus:ring-[#2d5438]/20`}
+                  />
+                  {errors.first && (
+                    <p className="mt-1 text-sm text-red-500">{errors.first.message}</p>
+                  )}
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    {...register("last")}
+                    placeholder="Last Name"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:border-[#2d5438] focus:ring-2 focus:ring-[#2d5438]/20"
+                  />
+                </div>
+              </div>
+              <div>
+                <input
+                  type="email"
+                  {...register("email", {
+                    required: "Email is required",
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: "Invalid email address"
+                    }
+                  })}
+                  placeholder="Email Address"
+                  className={`w-full px-4 py-3 rounded-lg border ${
+                    errors.email ? 'border-red-500' : 'border-gray-300'
+                  } focus:outline-none focus:border-[#2d5438] focus:ring-2 focus:ring-[#2d5438]/20`}
+                />
+                {errors.email && (
+                  <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>
+                )}
+              </div>
+              <div>
+                <textarea
+                  {...register("message", { required: "Message is required" })}
+                  placeholder="Your Message"
+                  rows={4}
+                  className={`w-full px-4 py-3 rounded-lg border ${
+                    errors.message ? 'border-red-500' : 'border-gray-300'
+                  } focus:outline-none focus:border-[#2d5438] focus:ring-2 focus:ring-[#2d5438]/20`}
+                ></textarea>
+                {errors.message && (
+                  <p className="mt-1 text-sm text-red-500">{errors.message.message}</p>
+                )}
+              </div>
+              <button 
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-[#2d5438] text-white px-8 py-3 rounded-full hover:bg-[#1a3222] transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Sending...' : 'Send Message'}
               </button>
             </form>
           </div>
